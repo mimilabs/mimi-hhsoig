@@ -47,8 +47,8 @@ rawtxt = """1128(a)(1)	1320a-7(a)(1)	Conviction of program-related crimes. Minim
 # COMMAND ----------
 
 data = [row.split("\t") for row in rawtxt.split("\n")]
-pdf_code = pd.DataFrame(data, columns=["social_security_act", "42_usc", "amendment"])
-pdf_code['excltype'] = pdf_code.social_security_act.str.replace('[^0-9a-zA-Z]', '', regex=True)
+pdf_code = pd.DataFrame(data, columns=["ssa_num", "42_usc_num", "excl_description"])
+pdf_code['excltype'] = pdf_code.ssa_num.str.replace('[^0-9a-zA-Z]', '', regex=True)
 
 # COMMAND ----------
 
