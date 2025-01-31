@@ -69,7 +69,9 @@ df_details = (spark.read.table('mimi_ws_1.hhsoig.enforcement_details')
 df_summaries = df_summaries.join(df_details, 
                                  on=(df_summaries.url == df_details.page_url), 
                                  how='left')
-item_urls_crawl = df_summaries.where('page_url IS NULL').select('url').collect()
+item_urls_crawl = [x['url'] for x in 
+                    (df_summaries.where('page_url IS NULL')
+                     .select('url').collect())]
 
 # COMMAND ----------
 

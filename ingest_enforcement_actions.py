@@ -72,15 +72,16 @@ Common violation categories include but are not limited to:
 Focus on accurate extraction without commentary. If information is ambiguous, use available context or default to null if unclear."""
         }]
 
-    def create_extraction_prompt(self, articles):
-        user_prompt = f"""Given these healthcare enforcement action articles separated by "---", extract key information into an array of JSON objects following the system-defined schema.
-return user_prompt
+    def create_extraction_prompt(self, article):
+        user_prompt = f"""Given this healthcare enforcement action article, extract key information into a JSON object following the system-defined schema.
 
 Articles to process:
-{articles}"""
+
+{article}"""
+
         return user_prompt
 
-    def process_articles(self, articles):
+    def process_articles(self, article):
         
         try:
             message = self.client.messages.create(
@@ -91,15 +92,15 @@ Articles to process:
                 messages=[
                     {
                         "role": "user",
-                        "content": self.create_extraction_prompt(articles)
+                        "content": self.create_extraction_prompt(article)
                     }
                 ]
             )
             # Extract JSON from response
             response_text = message.content[0].text
             # Find JSON block in the response
-            json_start = response_text.find('[')
-            json_end = response_text.rfind(']') + 1
+            json_start = response_text.find('{')
+            json_end = response_text.rfind('}') + 1
             if json_start >= 0 and json_end > json_start:
                 json_str = response_text[json_start:json_end]
                 return json.loads(json_str)
@@ -169,10 +170,12 @@ Articles to process:
 
 # COMMAND ----------
 
+# initialize our Claude connector
 processor = OIGArticleProcessor(anthropic_token)
 
 # COMMAND ----------
 
+# Find the articles that are not enrichced yet
 df_original = spark.read.table('mimi_ws_1.hhsoig.enforcement_details')
 df_enriched = (spark.read.table('mimi_ws_1.hhsoig.enforcement_details_enriched')
                 .withColumnRenamed('page_url', 'page_url_enriched')
@@ -184,35 +187,17 @@ pdf = df_original.where('page_url_enriched IS NULL').drop('page_url_enriched').t
 # COMMAND ----------
 
 data = []
-articles = []
-index2row = {}
 for index, row in tqdm(pdf.iterrows()):
     page_url = row.page_url
-    index2row[index] = row.to_dict()
     article = f"article_id: {index}\n\n{row.title}\n{row.content}\n"
-    articles.append(article)
-    if len(articles) > 4:
-        results = processor.process_articles(articles)
-        for result in results:
-            d_original = index2row.get(result.get('article_id'))
-            if page_url:
-                d_clean = processor.post_process_article({**result, **d_original})
-                article_id = d_clean.get('article_id')
-                with open(f"{output_path}/{article_id}.pkl", 'wb') as fp:
-                    print(f'saving... {article_id}.pkl')
-                    pickle.dump(d_clean, fp)
-        articles = []
-        index2row = {}
-if len(articles) > 0:
-    results = processor.process_articles(articles)
-    for result in results:
-        d_original = index2row.get(result.get('article_id'))
-        if page_url:
-            d_clean = processor.post_process_article({**result, **d_original})
-            article_id = d_clean.get('article_id')
-            with open(f"{output_path}/{article_id}.pkl", 'wb') as fp:
-                print(f'saving... {article_id}.pkl')
-                pickle.dump(d_clean, fp)
+    result = processor.process_articles(article)
+    d_original = row.to_dict()
+    if page_url:
+        d_clean = processor.post_process_article({**result, **d_original})
+        article_id = d_clean.get('article_id')
+        with open(f"{output_path}/{article_id}.pkl", 'wb') as fp:
+            print(f'saving... {article_id}.pkl')
+            pickle.dump(d_clean, fp)
 
 # COMMAND ----------
 
@@ -220,8 +205,6 @@ data = []
 for filepath in tqdm(Path(output_path).glob("*.pkl")):
     doc = pickle.load(open(filepath, "rb"))
     data.append(doc)
-
-# COMMAND ----------
 
 if len(data) > 0:
     pdf_output = pd.DataFrame(data).drop(columns=['article_id'])
@@ -231,7 +214,7 @@ if len(data) > 0:
     dtypes = spark.read.table('mimi_ws_1.hhsoig.enforcement_details_enriched').dtypes
     for col, dtype in dtypes:
         if dtype == 'array<string>':
-            pdf_output[col] = pdf_output[col].apply(lambda x: None if len(x) == 0 else x)
+            pdf_output[col] = pdf_output[col].apply(lambda x: None if x is None or len(x) == 0 else x)
     
     (
         spark.createDataFrame(pdf_output)
@@ -243,6 +226,7 @@ if len(data) > 0:
 
 # COMMAND ----------
 
+# clean up the temporary files
 for filepath in tqdm(Path(output_path).glob("*.pkl")):
     dbutils.fs.rm(str(filepath))
 
