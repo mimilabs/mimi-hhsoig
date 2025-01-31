@@ -4,16 +4,12 @@
 
 # COMMAND ----------
 
-import pandas as pd
-from glob import glob
-import re
-from dateutil.parser import parse
+# MAGIC %run /Workspace/Repos/yubin.park@mimilabs.ai/mimi-common-utils/ingestion_utils
 
 # COMMAND ----------
 
-def change_header(header_org):
-    return [re.sub(r'\W+', '', column.lower().replace(' ','_'))
-            for column in header_org]
+# MAGIC %sql
+# MAGIC --DROP TABLE mimi_ws_1.hhsoig.leie;
 
 # COMMAND ----------
 
@@ -53,8 +49,8 @@ pdf_code['excltype'] = pdf_code.ssa_num.str.replace('[^0-9a-zA-Z]', '', regex=Tr
 # COMMAND ----------
 
 files = []
-for f in glob('/Volumes/mimi_ws_1/hhsoig/src/leie*'):
-    files.append((f, parse(f[-12:-4])))
+for f in Path('/Volumes/mimi_ws_1/hhsoig/src/').glob('leie*'):
+    files.append((f, parse(f.name[-12:-4]).date()))
 entry = sorted(files, key=lambda x: x[1])[-1]
 ifd = entry[1]
 file = entry[0]
@@ -65,12 +61,15 @@ pdf_base = pd.read_csv(file, dtype=str, keep_default_na=False)
 pdf_base.columns = change_header(pdf_base.columns)
 for col in ["dob", "excldate", "reindate", "waiverdate", "wvrstate"]:
     #pdf_base[col] = pdf_base[col].str.replace("00000000", "")
-    pdf_base[col] = pd.to_datetime(pdf_base[col], format="%Y%m%d", errors="coerce").dt.date
+    pdf_base[col] = pd.to_datetime(pdf_base[col], 
+                                   format="%Y%m%d", errors="coerce").dt.date
 
 # COMMAND ----------
 
 pdf = pd.merge(pdf_base, pdf_code, on="excltype", how="left")
-pdf["_input_file_date"] = ifd
+pdf["mimi_src_file_date"] = ifd
+pdf["mimi_src_file_name"] = file.name
+pdf["mimi_dlt_load_date"] = datetime.today().date()
 
 # COMMAND ----------
 
