@@ -13,7 +13,7 @@ t = datetime.datetime.now().strftime('%Y%m%d')
 # COMMAND ----------
 
 url = "https://oig.hhs.gov/exclusions/downloadables/UPDATED.csv"
-volumepath = "/Volumes/mimi_ws_1/hhsoig/src"
+volumepath = "/Volumes/mimi_ws_1/hhsoig/src/leie/"
 
 # COMMAND ----------
 
@@ -30,7 +30,7 @@ def download_file(url, filename, folder):
 
 # COMMAND ----------
 
-download_file(url, f"leie_{t}.csv", "/Volumes/mimi_ws_1/hhsoig/src/")
+download_file(url, f"leie_{t}.csv", volumepath)
 
 # COMMAND ----------
 

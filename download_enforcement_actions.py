@@ -93,7 +93,7 @@ for item_url in tqdm(item_urls_crawl):
     d["content"] = '\n'.join([p.text for p in 
                                 article.select('p:not([style*="display:none"])')]).strip()
     d['page_url'] = item_url
-    d['source_urls'] = [x['href'] for x in article.find_all('a', href=True)]
+    #d['source_urls'] = [x['href'] for x in article.find_all('a', href=True)]
     for li in article.find('ul', class_='usa-list').find_all('li', recursive=False):
         span = li.find('span')
         if span is None:
@@ -123,6 +123,7 @@ if len(data) > 0:
     (
         spark.createDataFrame(pdf)
             .write.mode('append')
+            .option('mergeSchema', 'true')
             .saveAsTable('mimi_ws_1.hhsoig.enforcement_details')
     )
 

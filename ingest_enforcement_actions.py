@@ -85,7 +85,7 @@ Articles to process:
         
         try:
             message = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-sonnet-4-20250514",
                 max_tokens=4096,
                 temperature=0,
                 system=self.system_prompt,
@@ -192,12 +192,11 @@ for index, row in tqdm(pdf.iterrows()):
     article = f"article_id: {index}\n\n{row.title}\n{row.content}\n"
     result = processor.process_articles(article)
     d_original = row.to_dict()
-    if page_url:
-        d_clean = processor.post_process_article({**result, **d_original})
-        article_id = d_clean.get('article_id')
-        with open(f"{output_path}/{article_id}.pkl", 'wb') as fp:
-            print(f'saving... {article_id}.pkl')
-            pickle.dump(d_clean, fp)
+    d_clean = processor.post_process_article({**result, **d_original})
+    article_id = d_clean.get('article_id')
+    with open(f"{output_path}/{article_id}.pkl", 'wb') as fp:
+        print(f'saving... {article_id}.pkl')
+        pickle.dump(d_clean, fp)
 
 # COMMAND ----------
 
@@ -215,7 +214,11 @@ if len(data) > 0:
     for col, dtype in dtypes:
         if dtype == 'array<string>':
             pdf_output[col] = pdf_output[col].apply(lambda x: None if x is None or len(x) == 0 else x)
-    
+        elif dtype == 'string':
+            pdf_output[col] = pdf_output[col].apply(lambda x: None if x is None or len(x) == 0 else str(x))
+        elif col.endswith('_amount') or col == 'victims_affected':
+            pdf_output[col] = pd.to_numeric(pdf_output[col], errors='coerce').astype('float')
+
     (
         spark.createDataFrame(pdf_output)
             .write

@@ -49,7 +49,7 @@ pdf_code['excltype'] = pdf_code.ssa_num.str.replace('[^0-9a-zA-Z]', '', regex=Tr
 # COMMAND ----------
 
 files = []
-for f in Path('/Volumes/mimi_ws_1/hhsoig/src/').glob('leie*'):
+for f in Path('/Volumes/mimi_ws_1/hhsoig/src/leie').glob('leie*'):
     files.append((f, parse(f.name[-12:-4]).date()))
 entry = sorted(files, key=lambda x: x[1])[-1]
 ifd = entry[1]
